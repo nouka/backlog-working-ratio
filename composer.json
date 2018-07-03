@@ -1,0 +1,19 @@
+{
+  "name": "nouka/backlog-working-ratio",
+  "authors": [
+    {
+      "name": "ノーカ",
+      "email": "t-nouka@oz-vision.co.jp"
+    }
+  ],
+  "require": {
+    "vlucas/phpdotenv": "^2.4",
+    "atomita/backlog-v2": "^0.0.3",
+    "maknz/slack": "^1.7"
+  },
+  "autoload": {
+    "psr-4": {
+      "nouka\\": "src/"
+    }
+  }
+}

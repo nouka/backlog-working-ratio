@@ -1,0 +1,66 @@
+#!/usr/bin/env php
+<?php
+
+date_default_timezone_set('Asia/Tokyo');
+
+require_once __DIR__ . '/../vendor/autoload.php';
+
+use nouka\WorkingRatio;
+use nouka\BufferDigestibility;
+
+$dotenv = new Dotenv\Dotenv(__DIR__);
+$dotenv->load();
+
+$workingRatio = new WorkingRatio(
+    $_ENV['SPACE_NAME'],
+    $_ENV['API_KEY'],
+    $_ENV['PROJECT_KEY'],
+    explode(',', $_ENV['USER_LIST']),
+    $_ENV['WORKING_HOURS']
+);
+$bufferDigestibility = new BufferDigestibility(
+    $_ENV['SPACE_NAME'],
+    $_ENV['API_KEY'],
+    $_ENV['PROJECT_KEY'],
+    $_ENV['BUFFER_RATIO']
+);
+
+$settings = [
+    'username' => $_ENV['SLACK_BOT_NAME'],
+    'channel' => $_ENV['SLACK_CHANNEL'],
+    'link_names' => true
+];
+$client = new Maknz\Slack\Client($_ENV['SLACK_WEBHOOK'], $settings);
+
+$message = '< チームの稼働率だぞ。' . PHP_EOL;
+$message .= '======================' . PHP_EOL;
+$message .= '前日の稼働率 : ' . round($workingRatio->getYesterDayRatio(), 2) . '%' . PHP_EOL;
+$message .= '先週の稼働率平均 : ' . round($workingRatio->getPreviousWeekRatio(), 2) . '%' . PHP_EOL;
+if ($workingRatio->getYesterDayRatio() > 100) {
+    $message .= '< キャパオーバーじゃん？' . PHP_EOL;
+    $message .= '< 冷静になって計画を見直したほうがいいよ。' . PHP_EOL;
+} elseif ($workingRatio->getYesterDayRatio() > 80) {
+    $message .= '< 働き過ぎ。' . PHP_EOL;
+} elseif ($workingRatio->getYesterDayRatio() > 60) {
+    $message .= '< うん、いい感じだね。' . PHP_EOL;
+} else {
+    $message .= '< 余裕があるね。GOOD。' . PHP_EOL;
+}
+$message .= PHP_EOL;
+$message .= '< 施策の進捗状況だぞ。' . PHP_EOL;
+$message .= '======================' . PHP_EOL;
+foreach ($bufferDigestibility->get() as $bufferDigestibility) {
+    $message .= '施策名 : ' . $bufferDigestibility->getMilestoneName() . PHP_EOL;
+    $message .= '進捗率 : ' . round($bufferDigestibility->getProgressRate(), 2) . '%' . PHP_EOL;
+    $message .= 'バッファ消化率 : ' . round($bufferDigestibility->getDigestibility(), 2) . '%' . PHP_EOL;
+    if ($bufferDigestibility->getDigestibility() > 100) {
+        $message .= '< これはまずいね。' . PHP_EOL;
+        $message .= '< 関係者に状況を伝えよう。' . PHP_EOL;
+    } elseif ($bufferDigestibility->getDigestibility() > 80) {
+        $message .= '< ちょっとヤバいんじゃない？' . PHP_EOL;
+    }
+    $message .= '======================' . PHP_EOL;
+}
+
+$client->send($message);
+//echo $message;
